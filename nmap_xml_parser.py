@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 import json
-tree = ET.parse('nmap-20180603-ipv6.xml')
+tree = ET.parse('inputfile')
 root = tree.getroot()
 
 for child in root.findall('host'):

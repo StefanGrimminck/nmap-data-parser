@@ -24,6 +24,7 @@ def parse_xml(input_file, output_file):
     total_hosts = 0
     host_with_services = 0
     total_services = 0
+    host_names = []
 
     # Loop trough each element called host
     for child in root.findall('host'):
@@ -47,7 +48,8 @@ def parse_xml(input_file, output_file):
                 # If a hostname is coupled to the address,
                 # then add it as "hostname" to the json object.
             if elem.tag == "hostname":
-                host['hostname'] = elem.get("name")
+                host["hostname"] = elem.get("name")
+                host_names.append(elem.get("name"))
 
             # If a service is found, add its value to global variable "port"
             # so it can be used in the fieldnames of its services
@@ -86,8 +88,10 @@ def parse_xml(input_file, output_file):
 
                             if name_one_entry < name_multiple_entry:
                                 host["common_name"] = name_one_entry
+                                host_names.append(name_one_entry)
                             else:
                                 host["common_name"] = name_multiple_entry
+                                host_names.append(name_multiple_entry)
 
                     # Parse all other script outputs as normal
                     elif key not in not_usable_port_info:
@@ -128,7 +132,19 @@ def parse_xml(input_file, output_file):
                     with open(output_file, 'a') as outfile:
                         outfile.write(json_data + '\n')
     # Return metadata of parser
-    return [total_hosts, host_with_services, total_services]
+    return [total_hosts, host_with_services, total_services, host_names]
+
+
+def write_host_to_file(hostlist, hostfile):
+
+    # remove duplicates
+    hosts = set(hostlist)
+    hostlist = list(hosts)
+
+    f = open(hostfile, "w")
+    for hostname in hostlist:
+        if "*." not in hostname:
+            f.write(hostname + "\n")
 
 
 def main(arguments):
@@ -142,12 +158,17 @@ def main(arguments):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('infile', help='Input file', type=argparse.FileType("r"))
     parser.add_argument("outfile", help="Output file", type=argparse.FileType("a"))
+    parser.add_argument("hostfile", help="Host file", type=argparse.FileType("a"))
 
 # Convert args to usable variables
     args = parser.parse_args(arguments)
     infile = args.infile
     outfile = args.outfile
+    hostfile = args.hostfile
+
     hosts = parse_xml(infile.name, outfile.name)
+    write_host_to_file(hosts[3], hostfile.name)
+
 
     print("Hosts  processed: \t\t" + str(hosts[0]) + " hosts")
     print("Hosts with services : \t" + str(hosts[1]) + " hosts")

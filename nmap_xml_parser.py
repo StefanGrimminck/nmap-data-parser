@@ -33,6 +33,7 @@ def parse_xml(input_file, output_file):
         host = {}
         service_list = []
         port_list = []
+        service_port_list = []
         port_is_open = False
         port_nr = -1
         port = "-1"
@@ -71,12 +72,26 @@ def parse_xml(input_file, output_file):
 
                     if key == "product":
                         service_list.append(elem.attrib.get(key))
+                        service_port_list.append(elem.attrib.get(key) + ' (' + str(port_nr) + ')')
 
             # If a script is used (in our case a banner grabber) add its output to the json object.
             if elem.tag == "script" and port_is_open:
                 for key in elem.attrib:
-                    if key not in not_usable_port_info:
-                        host[port + "_script_" + key] = elem.attrib.get(key)
+                    # Check if the current script that is parsed is ssl-cert. Only extract the commonName field.
+                    if elem.attrib.get("id") == "ssl-cert":
+                        output = elem.attrib.get("output")
+                        if "commonName" in output:
+                            name_one_entry = output[output.find("commonName=") + 11:output.find("\n")]
+                            name_multiple_entry = output[output.find("commonName=") + 11:output.find("/")]
+
+                            if name_one_entry < name_multiple_entry:
+                                host["common_name"] = name_one_entry
+                            else:
+                                host["common_name"] = name_multiple_entry
+
+                    # Parse all other script outputs as normal
+                    elif key not in not_usable_port_info:
+                        host[port + "_" + elem.attrib.get("id") + "_" + key] = elem.attrib.get(key)
 
         # Only add data to the json object
         # if the port where the service runs on is open, else ignore this host
@@ -93,6 +108,7 @@ def parse_xml(input_file, output_file):
                 # Create separate lists for service and port data
                 host["services"] = service_list
                 host["ports"] = port_list
+                host["services_port"] = service_port_list
 
             # Check if usufull data of host exists
             if len(host) is not 0:
